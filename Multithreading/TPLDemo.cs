@@ -9,19 +9,29 @@ using System.Threading.Tasks;
 
 namespace Multithreading {
     class TPLDemo {
+        readonly Object obj = new object();
+
         enum ReturnCode { ResourceNotFound = -1, Ok};
-        public static Object ParallelCalculateFileSize(string path) {
+        public static Object ParallelCalculateFileSize(string path, string dest) {
             long totalSize = 0;
-            int returnCode = 0;
-            if (!Directory.Exists(path)) {
+            long size = 0;
+            int returnCode = 0;            
+            
+            if (!(Directory.Exists(path) && Directory.Exists(dest))) {
                 returnCode = (int)ReturnCode.ResourceNotFound;                
             }
+            FileInfo[] files = new DirectoryInfo(path).GetFiles();
 
             Stopwatch sw = Stopwatch.StartNew();
-            FileInfo[] files = new DirectoryInfo(path).GetFiles();
-            Parallel.For(0, files.Length, i => {
-                long size = files[i].Length;
+            Parallel.For(0, files.Length, i => {                
+                size = files[i].Length;
                 Interlocked.Add(ref totalSize, size);
+
+                String newFileName = dest + "\\" + files[i].Name;
+                if (!File.Exists(newFileName)) {
+                    files[i].CopyTo(newFileName);
+                }
+                 
             });
             sw.Stop();
 
@@ -29,22 +39,25 @@ namespace Multithreading {
 
             return new {
                 ResultCode = returnCode,
-                TimeElapsed = sw.ElapsedTicks,
+                TimeElapsed = sw.ElapsedTicks/100,
                 Size = totalSize
             };
         }
 
-        public static Object CalculateFileSize(string path) {
+        public static Object CalculateFileSize(string path, string dest) {
             long totalSize = 0;
             int returnCode = 0;
             if (!Directory.Exists(path)) {
                 returnCode = (int)ReturnCode.ResourceNotFound;
             }
 
-            Stopwatch sw = Stopwatch.StartNew();
             FileInfo[] files = new DirectoryInfo(path).GetFiles();
+            Stopwatch sw = Stopwatch.StartNew();
+
+
             foreach (var file in files) {
                 totalSize += file.Length;
+                file.CopyTo(dest + "\\" + file.Name);
             }
             sw.Stop();
 
@@ -52,7 +65,7 @@ namespace Multithreading {
 
             return new {
                 ResultCode = returnCode,
-                TimeElapsed = sw.ElapsedTicks,
+                TimeElapsed = sw.ElapsedTicks/100,
                 Size = totalSize
             };
         }
